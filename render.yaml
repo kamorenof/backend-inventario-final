@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: inventario-backend
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: DB_HOST
+        value: tu_host_mysql
+      - key: DB_USER
+        value: tu_usuario
+      - key: DB_PASSWORD
+        value: tu_contraseña
+      - key: DB_NAME
+        value: bd_aplicacioninve
