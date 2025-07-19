@@ -1,12 +1,14 @@
-import mysql from 'mysql2';
-import dotenv from 'dotenv';
+// config/db.js
+const { Pool } = require('pg');
+require('dotenv').config();
 
-dotenv.config(); 
-
-export const db = mysql.createConnection({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
-  port: 3306
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false, 
+  },
 });
+
+module.exports = {
+  query: (text, params) => pool.query(text, params),
+};
