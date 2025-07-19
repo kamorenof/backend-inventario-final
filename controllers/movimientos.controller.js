@@ -1,6 +1,6 @@
-const pool = require('../config/db');
+const { pool } = require('../config/db');
 
-// 🟢 Registrar un nuevo movimiento y sus detalles
+// Registrar un nuevo movimiento y sus detalles
 exports.registrarMovimiento = async (req, res) => {
   const { tipo, factura, motivo, responsable, productos } = req.body;
 
