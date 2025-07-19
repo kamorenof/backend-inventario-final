@@ -10,16 +10,16 @@ exports.registrarMovimiento = async (req, res) => {
 
   const total = productos.reduce((acc, p) => acc + (p.cantidad * p.valor_unitario), 0);
 
-  const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    // Iniciar transacción
+    await pool.query('BEGIN');
 
     const insertMovimientoQuery = `
       INSERT INTO movimientos (tipo, factura, motivo, responsable, total) 
       VALUES ($1, $2, $3, $4, $5)
       RETURNING id
     `;
-    const { rows } = await client.query(insertMovimientoQuery, [
+    const { rows } = await pool.query(insertMovimientoQuery, [
       tipo,
       factura || null,
       motivo || null,
@@ -36,7 +36,7 @@ exports.registrarMovimiento = async (req, res) => {
     `;
 
     for (const p of productos) {
-      await client.query(insertDetalleQuery, [
+      await pool.query(insertDetalleQuery, [
         id_movimiento,
         p.id_producto,
         p.cantidad,
@@ -45,15 +45,14 @@ exports.registrarMovimiento = async (req, res) => {
       ]);
     }
 
-    await client.query('COMMIT');
+    // Confirmar transacción
+    await pool.query('COMMIT');
     res.status(201).json({ mensaje: '✅ Movimiento registrado con éxito' });
 
   } catch (err) {
-    await client.query('ROLLBACK');
+    await pool.query('ROLLBACK');
     console.error('❌ Error al registrar movimiento:', err);
     res.status(500).json({ mensaje: 'Error al guardar el movimiento', error: err });
-  } finally {
-    client.release();
   }
 };
 
