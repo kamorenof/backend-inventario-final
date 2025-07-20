@@ -1,74 +1,71 @@
-const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 const pool = require('../config/db');
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 
-// 🔧 Configuración de Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key:    process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// 🟢 Subir imagen a Cloudinary y registrar en la base de datos
+// 🟢 Subir imagen a Cloudinary y guardar en DB
 exports.subirCombo = async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ mensaje: 'No se envió ninguna imagen' });
   }
 
+  const tempPath = req.file.path;
+
   try {
-    // 📤 Subir imagen a Cloudinary
-    const resultado = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'inventario/combos'
+    // Subir a Cloudinary
+    const result = await cloudinary.uploader.upload(tempPath, {
+      folder: 'combos_inventario', // Puedes cambiar el nombre de carpeta en Cloudinary
     });
 
-    // 🧹 Eliminar archivo local temporal
-    fs.unlinkSync(req.file.path);
+    // Guardar en PostgreSQL
+    await pool.query(
+      'INSERT INTO promociones (imagen_url, fecha) VALUES ($1, NOW())',
+      [result.secure_url]
+    );
 
-    // 🗃️ Guardar URL en la base de datos
-    const fecha = new Date();
-    const query = `INSERT INTO promociones (imagen_url, fecha) VALUES ($1, $2) RETURNING id`;
-    const { rows } = await pool.query(query, [resultado.secure_url, fecha]);
+    // Eliminar archivo temporal
+    fs.unlinkSync(tempPath);
 
     res.status(200).json({
       mensaje: '✅ Imagen subida y guardada correctamente',
-      id: rows[0].id,
-      url: resultado.secure_url
+      url: result.secure_url,
     });
-
   } catch (err) {
-    console.error('❌ Error al subir combo:', err);
-    res.status(500).json({ mensaje: 'Error al subir la imagen' });
+    console.error('❌ Error al subir a Cloudinary o guardar en BD:', err);
+    res.status(500).json({ mensaje: 'Error al subir imagen', error: err });
   }
 };
 
 // 🟢 Obtener combos desde la base de datos
 exports.obtenerCombos = async (req, res) => {
   try {
-    const result = await pool.query(`SELECT id, imagen_url FROM promociones ORDER BY fecha DESC`);
-    const combos = result.rows.map(row => ({
-      id: row.id,
-      url: row.imagen_url
-    }));
-
-    res.json(combos);
-
+    const result = await pool.query(
+      'SELECT id, imagen_url FROM promociones ORDER BY fecha DESC'
+    );
+    res.json(result.rows);
   } catch (err) {
-    console.error('❌ Error al obtener promociones:', err);
+    console.error('❌ Error al consultar promociones:', err);
     res.status(500).json({ mensaje: 'Error al obtener promociones' });
   }
 };
 
-// 🟢 Eliminar combo desde la base de datos (no Cloudinary por ahora)
+// 🟡 Eliminar combo de la base de datos (no elimina de Cloudinary)
 exports.eliminarCombo = async (req, res) => {
   const { id } = req.params;
 
   try {
-    await pool.query(`DELETE FROM promociones WHERE id = $1`, [id]);
-    res.json({ mensaje: '✅ Combo eliminado de la base de datos' });
+    // Obtener la imagen_url para referencia (opcional)
+    const result = await pool.query('SELECT imagen_url FROM promociones WHERE id = $1', [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ mensaje: 'Imagen no encontrada' });
+    }
 
+    // Eliminar solo de la base de datos
+    await pool.query('DELETE FROM promociones WHERE id = $1', [id]);
+
+    res.json({ mensaje: '✅ Imagen eliminada de la base de datos' });
   } catch (err) {
-    console.error('❌ Error al eliminar combo:', err);
-    res.status(500).json({ mensaje: 'Error al eliminar el combo' });
+    console.error('❌ Error al eliminar promoción:', err);
+    res.status(500).json({ mensaje: 'Error al eliminar imagen' });
   }
 };

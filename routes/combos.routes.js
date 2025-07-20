@@ -4,21 +4,11 @@ const multer = require('multer');
 const path = require('path');
 const combosController = require('../controllers/combos.controller');
 
-// 👉 Usamos almacenamiento temporal (no guardamos en disco porque se sube a Cloudinary)
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'temp'); // Ruta temporal, puedes usar './temp' o 'uploads/temp'
-  },
-  filename: (req, file, cb) => {
-    const uniqueName = Date.now() + '-' + file.originalname;
-    cb(null, uniqueName);
-  }
-});
-
-const upload = multer({ storage });
+// Subir a carpeta temporal
+const upload = multer({ dest: 'temp/' });
 
 router.post('/subir', upload.single('imagen'), combosController.subirCombo);
 router.get('/', combosController.obtenerCombos);
-router.delete('/:id', combosController.eliminarCombo); // 🔄 Antes era por filename, ahora por ID
+router.delete('/:id', combosController.eliminarCombo); // ← usamos el ID, no filename
 
 module.exports = router;
