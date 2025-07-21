@@ -1,4 +1,4 @@
-const cloudinary = require('cloudinary').v2;
+const cloudinary = require('../config/cloudinary');
 const pool = require('../config/db');
 const fs = require('fs');
 const path = require('path');
